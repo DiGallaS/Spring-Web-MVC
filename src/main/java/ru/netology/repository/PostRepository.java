@@ -12,29 +12,52 @@ public class PostRepository {
     private final AtomicLong idCounter = new AtomicLong();
 
     public List<Post> all() {
-        return new ArrayList<>(posts.values());
+        var notDeletedPosts =new ArrayList<Post>();
+        for (Post post:posts.values()){
+            for(Long key : posts.keySet()){
+                if(post.getId() == key && !post.isRemoved()){
+                    notDeletedPosts.add(post);
+                }
+            }
+        }
+        return notDeletedPosts;
     }
 
     public Optional<Post> getById(long id) {
+        for (Post post : posts.values())
+            if (post.getId() == id && post.isRemoved()) {
+                notFoundException();
+            }
         return Optional.ofNullable(posts.get(id));
     }
 
     public Post save(Post post) {
-        if (post.getId() == 0) {
+        long postId = post.getId();
+        if (postId  == 0) {
             long id = idCounter.incrementAndGet();
             post.setId(id);
             posts.put(id, post);
-        } else if (post.getId() != 0) {
-            Long currentId = post.getId();
-            posts.put(currentId, post);
+        } else if (posts.containsKey(postId)) {
+            if(posts.get(postId).isRemoved()){
+                notFoundException();
+            }
+            posts.put(postId, post);
         }
         return post;
     }
 
     public void removeById(long id) {
         if (!posts.containsKey(id)) {
-            throw new NotFoundException();
+            notFoundException();
         }
-        posts.remove(id);
+        for (Post post : posts.values()) {
+            if (post.getId() == id) {
+                post.setRemoved(true);
+            }
+        }
+    }
+
+    private void notFoundException() {
+        throw new NotFoundException();
     }
 }
